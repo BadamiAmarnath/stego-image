@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureStego — Hybrid Steganography System</title>
+    <meta name="description"
+        content="Production-grade hybrid encryption and steganography system with RSA-2048, AES-256-GCM, and adaptive LSB embedding.">
+    <!-- CryptoJS 4.1.1 for SHA-3 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- Pako 2.1.0 for zlib compression -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <!-- Forge for deterministic RSA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/1.3.1/forge.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ============================================================
+   CSS: Dark theme professional design
+   ============================================================ */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-input: #0d1525;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, .25);
+            --accent-hover: #818cf8;
+            --green: #10b981;
+            --green-glow: rgba(16, 185, 129, .2);
+            --red: #ef4444;
+            --red-glow: rgba(239, 68, 68, .2);
+            --yellow: #f59e0b;
+            --yellow-glow: rgba(245, 158, 11, .15);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #1e293b;
+            --border-focus: #6366f1;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, .4);
+            --font-sans: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --transition: all .25s cubic-bezier(.4, 0, .2, 1);
+        }
+
+        html {
+            font-size: 15px;
+            scroll-behavior: smooth
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased
+        }
+
+        /* Layout */
+        .app-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 24px 16px 60px
+        }
+
+        header {
+            text-align: center;
+            padding: 36px 0 24px
+        }
+
+        header h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -.5px
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: .85rem;
+            margin-top: 6px
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 4px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border)
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: var(--transition)
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(99, 102, 241, .08)
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 12px var(--accent-glow)
+        }
+
+        .tab-content {
+            display: none
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn .35s ease
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow)
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .card-title .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-glow);
+            color: var(--accent);
+            border-radius: var(--radius-xs);
+            font-size: .7rem
+        }
+
+        /* Inputs */
+        label {
+            display: block;
+            font-size: .8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: .88rem;
+            transition: var(--transition);
+            outline: none
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow)
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: var(--font-mono);
+            font-size: .82rem
+        }
+
+        input[type="file"] {
+            cursor: pointer;
+            padding: 10px
+        }
+
+        input[type="file"]::file-selector-button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: var(--radius-xs);
+            font-family: var(--font-sans);
+            font-weight: 500;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: var(--transition)
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: var(--accent-hover)
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px
+        }
+
+        .form-group {
+            margin-bottom: 14px
+        }
+
+        @media(max-width:600px) {
+            .form-row {
+                grid-template-columns: 1fr
+            }
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-sans);
+            font-size: .88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+            box-shadow: 0 2px 12px var(--accent-glow)
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px var(--accent-glow)
+        }
+
+        .btn-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border)
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, .08)
+        }
+
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: .78rem
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px
+        }
+
+        /* Pipeline Steps */
+        .pipeline {
+            list-style: none;
+            margin: 0;
+            padding: 0
+        }
+
+        .pipeline-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(30, 41, 59, .5);
+            font-size: .84rem;
+            position: relative
+        }
+
+        .pipeline-step:last-child {
+            border-bottom: none
+        }
+
+        .step-indicator {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: .7rem;
+            font-weight: 700;
+            border: 2px solid var(--border);
+            color: var(--text-muted);
+            transition: var(--transition);
+            margin-top: 1px
+        }
+
+        .step-indicator.pending {
+            border-color: var(--border);
+            color: var(--text-muted)
+        }
+
+        .step-indicator.running {
+            border-color: var(--yellow);
+            color: var(--yellow);
+            animation: pulse 1.2s infinite;
+            box-shadow: 0 0 8px var(--yellow-glow)
+        }
+
+        .step-indicator.done {
+            border-color: var(--green);
+            background: var(--green);
+            color: #fff
+        }
+
+        .step-indicator.error {
+            border-color: var(--red);
+            background: var(--red);
+            color: #fff
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .4
+            }
+        }
+
+        .step-label {
+            color: var(--text-secondary);
+            flex: 1
+        }
+
+        .step-label.active {
+            color: var(--text-primary)
+        }
+
+        .step-time {
+            font-family: var(--font-mono);
+            font-size: .75rem;
+            color: var(--text-muted);
+            white-space: nowrap
+        }
+
+        /* Output boxes */
+        .output-box {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            margin-top: 8px;
+            position: relative;
+            font-family: var(--font-mono);
+            font-size: .78rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+            line-height: 1.7;
+            max-height: 200px;
+            overflow-y: auto
+        }
+
+        .output-box .label {
+            color: var(--accent);
+            font-weight: 600;
+            margin-right: 6px
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            padding: 4px 10px;
+            font-size: .7rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-sans)
+        }
+
+        .copy-btn:hover {
+            color: var(--accent);
+            border-color: var(--accent)
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-top: 12px
+        }
+
+        .metric-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            text-align: center
+        }
+
+        .metric-card .metric-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .metric-card .metric-label {
+            font-size: .72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .5px
+        }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: .82rem;
+            font-weight: 600;
+            margin-top: 8px
+        }
+
+        .status-badge.verified {
+            background: var(--green-glow);
+            color: var(--green);
+            border: 1px solid var(--green)
+        }
+
+        .status-badge.tampered {
+            background: var(--red-glow);
+            color: var(--red);
+            border: 1px solid var(--red)
+        }
+
+        /* Error */
+        .error-box {
+            background: var(--red-glow);
+            border: 1px solid var(--red);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            color: var(--red);
+            font-size: .84rem;
+            margin-top: 12px;
+            display: none
+        }
+
+        /* Canvas preview */
+        .preview-area {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            flex-wrap: wrap
+        }
+
+        .preview-area canvas,
+        .preview-area img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-input)
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary)
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px
+        }
+
+        /* Self-destruct */
+        .self-destruct-msg {
+            background: var(--red-glow);
+            border: 2px solid var(--red);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            color: var(--red);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: none
+        }
+
+        /* Loading overlay */
+        .loading {
+            pointer-events: none;
+            opacity: .6
+        }
+
+        /* Mode Styles */
+        .mode-container {
+            margin-bottom: 20px;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 16px;
+            background: var(--bg-input);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .mode-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .mode-option:hover {
+            color: var(--text-primary);
+        }
+
+        .mode-option input {
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .mode-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
+
+        .badge-invisible {
+            background: var(--green-glow);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+
+        .badge-keyfile {
+            background: var(--yellow-glow);
+            color: var(--yellow);
+            border: 1px solid var(--yellow);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            background: var(--border);
+            color: var(--text-muted);
+            border-radius: 50%;
+            font-size: 10px;
+            cursor: help;
+            position: relative;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 150%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            font-size: 0.75rem;
+            line-height: 1.5;
+            white-space: pre-line;
+            pointer-events: none;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1>🔐 SecureStego</h1>
+            <p>Hybrid Encryption &amp; Adaptive LSB Steganography</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('encode')" id="tab-encode-btn">⚡ ENCODE</button>
+            <button class="tab-btn" onclick="switchTab('decode')" id="tab-decode-btn">🔓 DECODE</button>
+        </div>
+
+        <!-- ==================== ENCODE TAB ==================== -->
+        <div id="tab-encode" class="tab-content active">
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">1</span>
+                    Input
+                    <span id="encode-mode-badge-container">
+                        <span class="mode-badge badge-invisible">INVISIBLE MODE</span>
+                    </span>
+                </div>
+
+                <!-- Key Mode Toggle -->
+                <div class="mode-container">
+                    <label>Key Mode
+                        <span class="tooltip">?
+                            <span class="tooltip-text">Password Only: More invisible
+                                No suspicious files
+                                Recommended for sensitive communication
+
+                                RSA Key File: Traditional approach
+                                Stronger key randomness
+                                Requires key file exchange
+                                Less invisible</span>
+                        </span>
+                    </label>
+                    <div class="mode-toggle">
+                        <label class="mode-option">
+                            <input type="radio" name="encode-key-mode" value="password" checked
+                                onclick="updateModeUI('encode')">
+                            Password Only (Recommended - Invisible)
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="encode-key-mode" value="keyfile" onclick="updateModeUI('encode')">
+                            RSA Key File (Traditional)
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="encode-image">Cover Image (PNG/JPEG)</label>
+                    <input type="file" id="encode-image" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="encode-text">Secret Message</label>
+                    <textarea id="encode-text" placeholder="Enter your secret message here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="encode-password">Password (for AES key derivation)</label>
+                    <input type="password" id="encode-password" placeholder="Strong password...">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="encode-btn" onclick="startEncode()">🚀 Encode &amp;
+                        Encrypt</button>
+                </div>
+            </div>
+
+            <!-- Encode Pipeline -->
+            <div class="card" id="encode-pipeline-card" style="display:none">
+                <div class="card-title"><span class="icon">⚙</span> Security Pipeline</div>
+                <ul class="pipeline" id="encode-pipeline"></ul>
+            </div>
+
+            <!-- Encode Outputs -->
+            <div class="card" id="encode-outputs-card" style="display:none">
+                <div class="card-title"><span class="icon">📊</span> Cryptographic Details</div>
+                <div id="encode-outputs"></div>
+            </div>
+
+            <!-- Encode Metrics -->
+            <div class="card" id="encode-metrics-card" style="display:none">
+                <div class="card-title"><span class="icon">📈</span> Quality Metrics</div>
+                <div class="metrics-grid" id="encode-metrics"></div>
+            </div>
+
+            <!-- Encode Downloads -->
+            <div class="card" id="encode-downloads-card" style="display:none">
+                <div class="card-title"><span class="icon">⬇</span> Downloads</div>
+                <div class="btn-group" id="encode-downloads"></div>
+                <div class="preview-area" id="encode-preview"></div>
+            </div>
+
+            <div class="error-box" id="encode-error"></div>
+        </div>
+
+        <!-- ==================== DECODE TAB ==================== -->
+        <div id="tab-decode" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">1</span>
+                    Input
+                    <span id="decode-mode-badge-container">
+                        <span class="mode-badge badge-invisible">INVISIBLE MODE</span>
+                    </span>
+                </div>
+
+                <!-- Key Mode Toggle (Decode) -->
+                <div class="mode-container">
+                    <label>Key Mode</label>
+                    <div class="mode-toggle">
+                        <label class="mode-option">
+                            <input type="radio" name="decode-key-mode" value="password" checked
+                                onclick="updateModeUI('decode')">
+                            Password Only
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="decode-key-mode" value="keyfile" onclick="updateModeUI('decode')">
+                            RSA Key File
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="decode-image">Stego Image</label>
+                    <input type="file" id="decode-image" accept="image/png">
+                </div>
+                <div class="form-group">
+                    <label for="decode-password">Password</label>
+                    <input type="password" id="decode-password" placeholder="Enter password used for encoding...">
+                </div>
+                <div class="form-group" id="decode-privkey-group" style="display:none">
+                    <label for="decode-privkey">RSA Private Key (JWK file)</label>
+                    <input type="file" id="decode-privkey" accept=".json,.jwk">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="decode-btn" onclick="startDecode()">🔓 Decode &amp;
+                        Verify</button>
+                </div>
+            </div>
+
+            <!-- Self-destruct message -->
+            <div class="self-destruct-msg" id="self-destruct-msg">
+                ⚠️ MESSAGE ALREADY DECODED — Self-destruct triggered
+            </div>
+
+            <!-- Decode Pipeline -->
+            <div class="card" id="decode-pipeline-card" style="display:none">
+                <div class="card-title"><span class="icon">⚙</span> Verification Pipeline</div>
+                <ul class="pipeline" id="decode-pipeline"></ul>
+            </div>
+
+            <!-- Decode Outputs -->
+            <div class="card" id="decode-outputs-card" style="display:none">
+                <div class="card-title"><span class="icon">📊</span> Verification Details</div>
+                <div id="decode-outputs"></div>
+            </div>
+
+            <!-- Decode Result -->
+            <div class="card" id="decode-result-card" style="display:none">
+                <div class="card-title"><span class="icon">✉</span> Decoded Message</div>
+                <div id="decode-result"></div>
+            </div>
+
+            <div class="error-box" id="decode-error"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================================================
+           SecureStego — Full JavaScript Implementation
+           ============================================================ */
+        'use strict';
+
+        // ── Tab Switching ──
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('tab-' + tab + '-btn').classList.add('active');
+            updateModeUI(tab);
+        }
+
+        // ── Key Mode UI Handling ──
+        function updateModeUI(tab) {
+            const mode = document.querySelector(`input[name="${tab}-key-mode"]:checked`).value;
+            const badgeContainer = document.getElementById(`${tab}-mode-badge-container`);
+
+            if (mode === 'password') {
+                badgeContainer.innerHTML = '<span class="mode-badge badge-invisible">INVISIBLE MODE</span>';
+                if (tab === 'decode') {
+                    document.getElementById('decode-privkey-group').style.display = 'none';
+                }
+            } else {
+                badgeContainer.innerHTML = '<span class="mode-badge badge-keyfile">KEY FILE MODE</span>';
+                if (tab === 'decode') {
+                    document.getElementById('decode-privkey-group').style.display = 'block';
+                }
+            }
+        }
+
+        // ── Utility: Copy to clipboard ──
+        function copyText(text) {
+            navigator.clipboard.writeText(text).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+            });
+        }
+
+        // ── Utility: ArrayBuffer <-> Base64 ──
+        function ab2b64(buf) {
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+        }
+        function b642ab(b64) {
+            const binary = atob(b64);
+            const buf = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+            return buf.buffer;
+        }
+
+        // ── Utility: Base64 ──
+        function arrayToBase64(arr) {
+            if (arr instanceof ArrayBuffer) arr = new Uint8Array(arr);
+            let binary = '';
+            const len = arr.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(arr[i]);
+            }
+            return btoa(binary);
+        }
+        function base64ToArray(str) {
+            const binary = atob(str);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        // ── Utility: Hex encoding ──
+        function ab2hex(buf) {
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ── Utility: Download blob ──
+        function downloadBlob(blob, filename) {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ── Utility: Mask string for display ──
+        function maskStr(s, show = 8) {
+            if (s.length <= show * 2) return s;
+            return s.slice(0, show) + '••••' + s.slice(-show);
+        }
+
+        // ── Utility: Format bytes ──
+        function fmtBytes(n) {
+            if (n < 1024) return n + ' B';
+            if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+            return (n / 1048576).toFixed(2) + ' MB';
+        }
+
+        // ── Utility: Seeded PRNG (Mulberry32) for deterministic pixel order ──
+        function seedPRNG(seed) {
+            /* Create a 32-bit seed from a string using simple hash */
+            let h = 0;
+            for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h + seed.charCodeAt(i)) | 0; }
+            h = Math.abs(h) || 1;
+            return function () {
+                h |= 0; h = h + 0x6D2B79F5 | 0;
+                let t = Math.imul(h ^ h >>> 15, 1 | h);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+
+        // ── Utility: Shuffle array indices using seeded PRNG ──
+        function shuffleIndices(count, seed) {
+            const rng = seedPRNG(seed);
+            const arr = [];
+            for (let i = 0; i < count; i++) arr.push(i);
+            /* Fisher-Yates shuffle */
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // ── Pipeline UI helpers ──
+        const ENCODE_STEPS_RSA = [
+            'Compressing plaintext', 'Hashing SHA-256', 'Hashing SHA-3',
+            'Generating HMAC', 'Deriving AES key (PBKDF2)',
+            'Encrypting AES-256-GCM', 'Generating RSA-2048 key pair',
+            'Encrypting AES key with RSA', 'Signing with RSA-PSS',
+            'Combining payload', 'Embedding via Adaptive LSB',
+            'Finalizing stego image'
+        ];
+        const ENCODE_STEPS_PW = [
+            'Compressing plaintext', 'Hashing SHA-256', 'Hashing SHA-3',
+            'Deriving keys (PBKDF2)', 'Encrypting AES-256-GCM', 'Generating HMAC',
+            'Building payload (JSON)', 'Embedding Adaptive LSB', 'Finalizing stego image'
+        ];
+
+        const DECODE_STEPS_RSA = [
+            'Loading stego image', 'Checking self-destruct flag',
+            'Extracting payload (reverse LSB)', 'Parsing payload components',
+            'Verifying RSA-PSS signature', 'Verifying HMAC-SHA256',
+            'Decrypting AES key via RSA', 'Decrypting AES-256-GCM',
+            'Decompressing data', 'Recomputing & comparing hashes',
+            'Displaying result'
+        ];
+        const DECODE_STEPS_PW = [
+            'Loading stego image', 'Checking self-destruct flag',
+            'Extracting payload (reverse LSB)', 'Parsing payload (JSON)',
+            'Deriving AES key (PBKDF2)', 'Verifying HMAC',
+            'Decrypting AES-256-GCM', 'Decompressing data',
+            'Recomputing & comparing hashes', 'Displaying result'
+        ];
+
+        function renderPipeline(containerId, steps) {
+            const ul = document.getElementById(containerId);
+            ul.innerHTML = steps.map((s, i) =>
+                `<li class="pipeline-step" id="${containerId}-step-${i}">
+       <span class="step-indicator pending" id="${containerId}-ind-${i}">${i + 1}</span>
+       <span class="step-label" id="${containerId}-lbl-${i}">${s}</span>
+       <span class="step-time" id="${containerId}-time-${i}"></span>
+     </li>`
+            ).join('');
+        }
+
+        function setStepState(containerId, idx, state, timeMs) {
+            const ind = document.getElementById(containerId + '-ind-' + idx);
+            const lbl = document.getElementById(containerId + '-lbl-' + idx);
+            const tm = document.getElementById(containerId + '-time-' + idx);
+            if (!ind) return;
+            ind.className = 'step-indicator ' + state;
+            if (state === 'done') ind.textContent = '✓';
+            else if (state === 'error') ind.textContent = '✗';
+            else if (state === 'running') ind.textContent = '⟳';
+            if (state === 'running' || state === 'done') lbl.classList.add('active');
+            if (timeMs !== undefined) tm.textContent = timeMs.toFixed(1) + ' ms';
+        }
+
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.style.display = 'block'; el.textContent = '❌ ' + msg;
+        }
+        function hideError(id) { document.getElementById(id).style.display = 'none'; }
+
+        function addOutput(containerId, label, value, canCopy = true) {
+            const div = document.getElementById(containerId);
+            const id = 'out-' + Math.random().toString(36).slice(2, 8);
+            div.innerHTML += `<div class="output-box" id="${id}">
+    ${canCopy ? `<button class="copy-btn" onclick="copyText(document.getElementById('${id}').dataset.val)">📋 Copy</button>` : ''}
+    <span class="label">${label}:</span> ${value}
+  </div>`;
+            if (canCopy) document.getElementById(id).dataset.val = value;
+        }
+
+        function setMetric(containerId, label, value) {
+            const grid = document.getElementById(containerId);
+            grid.innerHTML += `<div class="metric-card">
+    <div class="metric-val">${value}</div>
+    <div class="metric-label">${label}</div>
+  </div>`;
+        }
+
+        // ── Crypto: Compress with pako ──
+        function compress(text) {
+            const encoded = new TextEncoder().encode(text);
+            return pako.deflate(encoded);
+        }
+        function decompress(data) {
+            const inflated = pako.inflate(data);
+            return new TextDecoder().decode(inflated);
+        }
+
+        // ── Crypto: SHA-256 via Web Crypto ──
+        async function hashSHA256(data) {
+            const buf = (data instanceof ArrayBuffer) ? data : (data.buffer ? data.buffer : new TextEncoder().encode(data));
+            return await crypto.subtle.digest('SHA-256', buf);
+        }
+
+        // ── Crypto: SHA-3 via CryptoJS ──
+        function hashSHA3(data) {
+            let input;
+            if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
+                const bytes = new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer);
+                input = CryptoJS.lib.WordArray.create(bytes);
+            } else {
+                input = data;
+            }
+            return CryptoJS.SHA3(input, { outputLength: 256 }).toString();
+        }
+
+        // ── Crypto: HMAC-SHA256 via Web Crypto ──
+        async function generateHMAC(data, keyBytes) {
+            const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+            const dataBuf = (data instanceof ArrayBuffer) ? data : data.buffer;
+            return await crypto.subtle.sign('HMAC', key, dataBuf);
+        }
+        async function verifyHMAC(data, signature, keyBytes) {
+            const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+            const dataBuf = (data instanceof ArrayBuffer) ? data : data.buffer;
+            return await crypto.subtle.verify('HMAC', key, signature, dataBuf);
+        }
+
+        // ── Crypto: PBKDF2 key derivation ──
+        async function deriveAESKey(password, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+            const aesKey = await crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                true,  /* extractable so we can export & encrypt with RSA */
+                ['encrypt', 'decrypt']
+            );
+            return aesKey;
+        }
+
+        // ── Crypto: AES-256-GCM encrypt/decrypt ──
+        async function encryptAES(data, key) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const dataBuf = (data instanceof ArrayBuffer) ? data : data.buffer;
+            const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, dataBuf);
+            return { iv, ciphertext };
+        }
+        async function decryptAES(ciphertext, key, iv) {
+            return await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ciphertext);
+        }
+
+        // ── Crypto: RSA-2048 keygen (RSA-PSS as primary) ──
+        async function generateRSAKeyPair(isDeterministic = false, seedBytes = null) {
+            if (!isDeterministic) {
+                return await crypto.subtle.generateKey(
+                    {
+                        name: 'RSA-PSS',
+                        modulusLength: 2048,
+                        publicExponent: new Uint8Array([1, 0, 1]),
+                        hash: 'SHA-256'
+                    },
+                    true, ['sign', 'verify']
+                );
+            } else {
+                /* Deterministic generation using Forge */
+                const prng = {
+                    getBytes: function (count) {
+                        let out = '';
+                        let curr = seedBytes;
+                        while (out.length < count) {
+                            const md = forge.md.sha256.create();
+                            md.update(forge.util.binary.raw.encode(curr));
+                            const digest = md.digest().bytes();
+                            out += digest;
+                            curr = forge.util.binary.raw.decode(digest);
+                        }
+                        return out.slice(0, count);
+                    },
+                    getBytesSync: function (count) { return this.getBytes(count); }
+                };
+
+                const forgeKeyPair = forge.pki.rsa.generateKeyPair({ bits: 2048, prng: prng, workers: 0 });
+
+                /* Convert Forge private key to PKCS#8 */
+                const privAsn1 = forge.pki.privateKeyToAsn1(forgeKeyPair.privateKey);
+                const privDer = forge.asn1.toDer(privAsn1).getBytes();
+                const privBuf = forge.util.binary.raw.decode(privDer);
+
+                /* Convert Forge public key to SPKI */
+                const pubAsn1 = forge.pki.publicKeyToAsn1(forgeKeyPair.publicKey);
+                const pubDer = forge.asn1.toDer(pubAsn1).getBytes();
+                const pubBuf = forge.util.binary.raw.decode(pubDer);
+
+                const privateKey = await crypto.subtle.importKey(
+                    'pkcs8', privBuf,
+                    { name: 'RSA-PSS', hash: 'SHA-256' },
+                    true, ['sign']
+                );
+
+                const publicKey = await crypto.subtle.importKey(
+                    'spki', pubBuf,
+                    { name: 'RSA-PSS', hash: 'SHA-256' },
+                    true, ['verify']
+                );
+
+                return { privateKey, publicKey };
+            }
+        }
+
+        // ── Crypto: RSA encrypt/decrypt (AES key) ──
+        // Note: Key is generated as RSA-PSS, so we re-import as RSA-OAEP for encryption/decryption
+        async function rsaEncrypt(data, publicKey) {
+            const jwk = await crypto.subtle.exportKey('jwk', publicKey);
+            // Remove alg to avoid mismatch, or strict override
+            delete jwk.alg;
+            delete jwk.key_ops;
+            const oaepKey = await crypto.subtle.importKey(
+                'jwk', jwk,
+                { name: 'RSA-OAEP', hash: 'SHA-256' },
+                false, ['encrypt']
+            );
+            return await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, oaepKey, data);
+        }
+
+        async function rsaDecrypt(data, privateKey) {
+            const jwk = await crypto.subtle.exportKey('jwk', privateKey);
+            delete jwk.alg;
+            delete jwk.key_ops;
+            const oaepKey = await crypto.subtle.importKey(
+                'jwk', jwk,
+                { name: 'RSA-OAEP', hash: 'SHA-256' },
+                false, ['decrypt']
+            );
+            return await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, oaepKey, data);
+        }
+
+        // ── Crypto: RSA-PSS sign/verify ──
+        // Key is already RSA-PSS, so use directly
+        async function rsaPSSSign(data, privateKey) {
+            const dataBuf = (data instanceof ArrayBuffer) ? data : data.buffer;
+            return await crypto.subtle.sign({ name: 'RSA-PSS', saltLength: 32 }, privateKey, dataBuf);
+        }
+
+        async function rsaPSSVerify(data, signature, publicKey) {
+            const dataBuf = (data instanceof ArrayBuffer) ? data : data.buffer;
+            return await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, publicKey, signature, dataBuf);
+        }
+
+        // ── Steganography: Pixel complexity (local variance in 3×3 neighbourhood) ──
+        function getPixelComplexity(imgData, x, y, w, h) {
+            /* Compute variance of pixel values in a 3×3 window around (x,y).
+               Higher variance = more complex texture = can hide more bits.
+               
+               CRITICAL: We must ignore the LSBs because they might change during embedding.
+               We mask out the lowest 3 bits (max BPP) so variance is identical
+               before and after embedding. */
+            let sum = 0, sumSq = 0, count = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        const idx = (ny * w + nx) * 4;
+                        for (let c = 0; c < 3; c++) {
+                            /* Mask out lowest 3 bits to ensure consistency between original and stego image */
+                            const v = imgData[idx + c] & 0xF8;
+                            sum += v; sumSq += v * v; count++;
+                        }
+                    }
+                }
+            }
+            const mean = sum / count;
+            const variance = (sumSq / count) - (mean * mean);
+            return variance;
+        }
+
+        // ── Steganography: Adaptive LSB Embed ──
+        function adaptiveLSBEmbed(imageData, width, height, payloadBits, password) {
+            /* Determine bits-per-channel based on pixel complexity:
+               - variance < 100  → 1 bit (simple/flat region)
+               - variance < 800  → 2 bits
+               - variance >= 800 → 3 bits (complex texture)
+               Pixel order is randomized using password-seeded PRNG. */
+            const totalPixels = width * height;
+            const pixelOrder = shuffleIndices(totalPixels, password);
+            const data = imageData.data;
+
+            /* First pass: determine total capacity */
+            let capacity = 0;
+            const bitsPerPixel = new Uint8Array(totalPixels);
+            for (let i = 0; i < totalPixels; i++) {
+                const pi = pixelOrder[i];
+                const x = pi % width, y = Math.floor(pi / width);
+                const variance = getPixelComplexity(data, x, y, width, height);
+                let bpp;
+                if (variance < 100) bpp = 1;
+                else if (variance < 800) bpp = 2;
+                else bpp = 3;
+                bitsPerPixel[i] = bpp;
+                capacity += bpp * 3; /* 3 channels (R, G, B) */
+            }
+
+            /* We need 32 bits for length header + payload bits + 8 bits self-destruct flag */
+            const headerBits = 32;
+            const flagBits = 8;
+            const totalBitsNeeded = headerBits + payloadBits.length + flagBits;
+            if (totalBitsNeeded > capacity) {
+                throw new Error(`Payload too large. Need ${totalBitsNeeded} bits but only ${capacity} available.`);
+            }
+
+            /* Build full bitstream: [32-bit length][payload][8-bit flag=0x00] */
+            const payloadLen = payloadBits.length;
+            const fullBits = new Uint8Array(totalBitsNeeded);
+            /* Write length as 32-bit big-endian */
+            for (let b = 31; b >= 0; b--) fullBits[31 - b] = (payloadLen >>> b) & 1;
+            /* Copy payload */
+            for (let i = 0; i < payloadLen; i++) fullBits[headerBits + i] = payloadBits[i];
+            /* Flag byte = 0x00 (not yet decoded) */
+            /* Already 0 by default */
+
+            /* Second pass: embed bits */
+            let bitIdx = 0;
+            for (let i = 0; i < totalPixels && bitIdx < totalBitsNeeded; i++) {
+                const pi = pixelOrder[i];
+                const pixelOffset = pi * 4;
+                const bpp = bitsPerPixel[i];
+                const mask = (1 << bpp) - 1;  /* e.g. bpp=2 → mask=0b11 */
+
+                for (let c = 0; c < 3 && bitIdx < totalBitsNeeded; c++) {
+                    /* Read `bpp` bits from the stream */
+                    let val = 0;
+                    for (let b = 0; b < bpp && bitIdx < totalBitsNeeded; b++) {
+                        val = (val << 1) | fullBits[bitIdx++];
+                    }
+                    /* Clear lowest bpp bits and set new value */
+                    data[pixelOffset + c] = (data[pixelOffset + c] & ~mask) | val;
+                }
+            }
+
+            return { capacity, used: totalBitsNeeded };
+        }
+
+        // ── Steganography: Adaptive LSB Extract ──
+        function adaptiveLSBExtract(imageData, width, height, password) {
+            const totalPixels = width * height;
+            const pixelOrder = shuffleIndices(totalPixels, password);
+            const data = imageData.data;
+
+
+            /* Determine total capacity and allocate bits per pixel */
+            const bitsPerPixel = new Uint8Array(totalPixels);
+            let totalCapacity = 0;
+            for (let i = 0; i < totalPixels; i++) {
+                const pi = pixelOrder[i];
+                const x = pi % width, y = Math.floor(pi / width);
+                const variance = getPixelComplexity(data, x, y, width, height);
+                let bpp;
+                if (variance < 100) bpp = 1;
+                else if (variance < 800) bpp = 2;
+                else bpp = 3;
+                bitsPerPixel[i] = bpp;
+                totalCapacity += bpp * 3;
+            }
+
+            /* Extract bits */
+            function extractBits(startBit, count) {
+                const bits = new Uint8Array(count);
+                let bitIdx = 0;
+                let globalBit = 0;
+                for (let i = 0; i < totalPixels && bitIdx < startBit + count; i++) {
+                    const pi = pixelOrder[i];
+                    const pixelOffset = pi * 4;
+                    const bpp = bitsPerPixel[i];
+                    const mask = (1 << bpp) - 1;
+
+                    for (let c = 0; c < 3; c++) {
+                        /* Extract bpp bits from this channel */
+                        for (let b = bpp - 1; b >= 0; b--) {
+                            if (globalBit >= startBit && globalBit < startBit + count) {
+                                const channelVal = data[pixelOffset + c] & mask;
+                                bits[globalBit - startBit] = (channelVal >>> b) & 1;
+                            }
+                            globalBit++;
+                            if (globalBit >= startBit + count) break;
+                        }
+                        if (globalBit >= startBit + count) break;
+                    }
+                    if (globalBit >= startBit + count) break;
+                }
+                return bits;
+            }
+
+            /* Read 32-bit length header */
+            const headerBits = extractBits(0, 32);
+            let payloadLen = 0;
+            for (let i = 0; i < 32; i++) payloadLen = (payloadLen << 1) | headerBits[i];
+
+            /* Sanity check */
+            if (payloadLen <= 0 || payloadLen > totalCapacity) {
+                throw new Error(`Invalid payload length (${payloadLen} bits; Capacity: ${totalCapacity}). Wrong password or corrupted image.`);
+            }
+
+            /* Read payload */
+            const payloadBits = extractBits(32, payloadLen);
+
+            /* Read self-destruct flag (8 bits after payload) */
+            const flagBits = extractBits(32 + payloadLen, 8);
+            let flag = 0;
+            for (let i = 0; i < 8; i++) flag = (flag << 1) | flagBits[i];
+
+            return { payloadBits, selfDestructFlag: flag };
+
+
+        }
+
+        // ── Steganography: Mark image as decoded (set flag byte to 0xFF) ──
+        function markSelfDestruct(imageData, width, height, password, payloadLen) {
+            const totalPixels = width * height;
+            const pixelOrder = shuffleIndices(totalPixels, password);
+            const data = imageData.data;
+            const bitsPerPixel = new Uint8Array(totalPixels);
+            for (let i = 0; i < totalPixels; i++) {
+                const pi = pixelOrder[i];
+                const x = pi % width, y = Math.floor(pi / width);
+                const variance = getPixelComplexity(data, x, y, width, height);
+                if (variance < 100) bitsPerPixel[i] = 1;
+                else if (variance < 800) bitsPerPixel[i] = 2;
+                else bitsPerPixel[i] = 3;
+            }
+            /* Write 0xFF at position 32 + payloadLen (8 bits) */
+            const flagStart = 32 + payloadLen;
+            const flagBits = [1, 1, 1, 1, 1, 1, 1, 1];
+            let bitIdx = 0;
+            let globalBit = 0;
+            for (let i = 0; i < totalPixels && bitIdx < 8; i++) {
+                const pi = pixelOrder[i];
+                const pixelOffset = pi * 4;
+                const bpp = bitsPerPixel[i];
+                const mask = (1 << bpp) - 1;
+                for (let c = 0; c < 3; c++) {
+                    for (let b = bpp - 1; b >= 0; b--) {
+                        if (globalBit >= flagStart && globalBit < flagStart + 8) {
+                            const fi = globalBit - flagStart;
+                            /* Modify this specific bit */
+                            const shift = b;
+                            if (flagBits[fi]) {
+                                data[pixelOffset + c] |= (1 << shift);
+                            } else {
+                                data[pixelOffset + c] &= ~(1 << shift);
+                            }
+                            bitIdx++;
+                        }
+                        globalBit++;
+                        if (bitIdx >= 8) break;
+                    }
+                    if (bitIdx >= 8) break;
+                }
+            }
+        }
+
+        // ── Metrics: PSNR ──
+        function calculatePSNR(original, modified, length) {
+            let mse = 0;
+            for (let i = 0; i < length; i++) {
+                if (i % 4 === 3) continue; /* skip alpha */
+                const diff = original[i] - modified[i];
+                mse += diff * diff;
+            }
+            const pixelCount = Math.floor(length / 4) * 3;
+            mse /= pixelCount;
+            if (mse === 0) return Infinity;
+            return 10 * Math.log10((255 * 255) / mse);
+        }
+
+        // ── Metrics: SSIM (simplified per-pixel luminance comparison) ──
+        function calculateSSIM(original, modified, width, height) {
+            /* Simplified SSIM: compute on luminance channel, using 8×8 blocks */
+            const C1 = (0.01 * 255) ** 2, C2 = (0.03 * 255) ** 2;
+            function lum(data, idx) { return 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]; }
+            const blockSize = 8;
+            let ssimSum = 0, blockCount = 0;
+            for (let by = 0; by + blockSize <= height; by += blockSize) {
+                for (let bx = 0; bx + blockSize <= width; bx += blockSize) {
+                    let mx = 0, my = 0, sx2 = 0, sy2 = 0, sxy = 0;
+                    const n = blockSize * blockSize;
+                    for (let dy = 0; dy < blockSize; dy++) {
+                        for (let dx = 0; dx < blockSize; dx++) {
+                            const idx = ((by + dy) * width + (bx + dx)) * 4;
+                            const x = lum(original, idx), y = lum(modified, idx);
+                            mx += x; my += y;
+                        }
+                    }
+                    mx /= n; my /= n;
+                    for (let dy = 0; dy < blockSize; dy++) {
+                        for (let dx = 0; dx < blockSize; dx++) {
+                            const idx = ((by + dy) * width + (bx + dx)) * 4;
+                            const x = lum(original, idx) - mx, y = lum(modified, idx) - my;
+                            sx2 += x * x; sy2 += y * y; sxy += x * y;
+                        }
+                    }
+                    sx2 /= n; sy2 /= n; sxy /= n;
+                    const ssim = ((2 * mx * my + C1) * (2 * sxy + C2)) / ((mx * mx + my * my + C1) * (sx2 + sy2 + C2));
+                    ssimSum += ssim; blockCount++;
+                }
+            }
+            return blockCount > 0 ? ssimSum / blockCount : 1;
+        }
+
+        // ── Metrics: BER ──
+        function calculateBER(originalBits, extractedBits) {
+            let errors = 0;
+            const len = Math.min(originalBits.length, extractedBits.length);
+            for (let i = 0; i < len; i++) {
+                if (originalBits[i] !== extractedBits[i]) errors++;
+            }
+            return errors / len;
+        }
+
+        // ── Payload: bytes to bits and back ──
+        function bytesToBits(bytes) {
+            const bits = new Uint8Array(bytes.length * 8);
+            for (let i = 0; i < bytes.length; i++) {
+                for (let b = 7; b >= 0; b--) {
+                    bits[i * 8 + (7 - b)] = (bytes[i] >>> b) & 1;
+                }
+            }
+            return bits;
+        }
+        function bitsToBytes(bits) {
+            const len = Math.ceil(bits.length / 8);
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < bits.length; i++) {
+                bytes[Math.floor(i / 8)] |= bits[i] << (7 - (i % 8));
+            }
+            return bytes;
+        }
+
+        // ── Payload: Combine all components with delimiters ──
+
+
+
+        // ── Payload: Combine all components with delimiters ──
+        // ENCODE - buildPayload function
+        function buildPayload(sections) {
+            // sections is array of Uint8Array
+            // Format: [4 bytes count][4 bytes len][data][4 bytes len][data]...
+
+            const count = sections.length;
+            let totalSize = 4; // for count
+            sections.forEach(s => totalSize += 4 + s.length);
+
+            const buffer = new ArrayBuffer(totalSize);
+            const view = new DataView(buffer);
+            const bytes = new Uint8Array(buffer);
+
+            view.setUint32(0, count, true); // little endian
+            let offset = 4;
+
+            sections.forEach(section => {
+                view.setUint32(offset, section.length, true);
+                offset += 4;
+                bytes.set(section, offset);
+                offset += section.length;
+            });
+
+            return bytes;
+        }
+
+        // DECODE - parsePayload function
+        function parsePayload(bytes) {
+            const view = new DataView(bytes.buffer,
+                bytes.byteOffset,
+                bytes.byteLength);
+            let offset = 0;
+
+            const count = view.getUint32(offset, true);
+            offset += 4;
+
+            if (count > 20) throw new Error('Invalid payload');
+
+            const sections = [];
+
+            for (let i = 0; i < count; i++) {
+                if (offset + 4 > bytes.length)
+                    throw new Error('Payload truncated at section ' + i);
+
+                const length = view.getUint32(offset, true);
+                offset += 4;
+
+                if (length > bytes.length - offset)
+                    throw new Error('Section ' + i +
+                        ' length ' + length +
+                        ' exceeds remaining ' +
+                        (bytes.length - offset));
+
+                sections.push(bytes.slice(offset, offset + length));
+                offset += length;
+            }
+
+            return sections;
+        }
+
+
+
+        /* ============================================================
+           ENCODE FLOW
+           ============================================================ */
+        async function startEncode() {
+            const imageInput = document.getElementById('encode-image');
+            const textInput = document.getElementById('encode-text');
+            const passInput = document.getElementById('encode-password');
+
+            if (!imageInput.files.length) return showError('encode-error', 'Please select a cover image.');
+            if (!textInput.value.trim()) return showError('encode-error', 'Please enter a secret message.');
+            if (!passInput.value || passInput.value.length < 4) return showError('encode-error', 'Password must be at least 4 characters.');
+            hideError('encode-error');
+
+            const btn = document.getElementById('encode-btn');
+            btn.disabled = true;
+
+            const keyMode = document.querySelector('input[name="encode-key-mode"]:checked').value;
+            const steps = keyMode === 'password' ? ENCODE_STEPS_PW : ENCODE_STEPS_RSA;
+
+            const pipeCard = document.getElementById('encode-pipeline-card');
+            pipeCard.style.display = '';
+            renderPipeline('encode-pipeline', steps);
+
+            document.getElementById('encode-outputs-card').style.display = '';
+            document.getElementById('encode-outputs').innerHTML = '';
+            document.getElementById('encode-metrics-card').style.display = 'none';
+            document.getElementById('encode-metrics').innerHTML = '';
+            document.getElementById('encode-downloads-card').style.display = 'none';
+            document.getElementById('encode-downloads').innerHTML = '';
+            document.getElementById('encode-preview').innerHTML = '';
+
+            const plaintext = textInput.value;
+            const password = passInput.value;
+            let stepIdx = 0;
+
+            async function step(fn) {
+                setStepState('encode-pipeline', stepIdx, 'running');
+                const t0 = performance.now();
+                try {
+                    const result = await fn();
+                    const elapsed = performance.now() - t0;
+                    setStepState('encode-pipeline', stepIdx, 'done', elapsed);
+                    stepIdx++;
+                    return result;
+                } catch (e) {
+                    setStepState('encode-pipeline', stepIdx, 'error', performance.now() - t0);
+                    throw e;
+                }
+            }
+
+            try {
+                if (keyMode === 'password') {
+                    /* MODE 1: PASSWORD ONLY (RSA-FREE) */
+
+                    // Step 1: Compressing plaintext
+                    const compressed = await step(() => compress(plaintext));
+                    addOutput('encode-outputs', 'Original Size', fmtBytes(new TextEncoder().encode(plaintext).length));
+                    addOutput('encode-outputs', 'Compressed Size', fmtBytes(compressed.length));
+
+                    // Step 2: Hashing SHA-256
+                    const sha256Hash = await step(() => hashSHA256(compressed));
+                    addOutput('encode-outputs', 'SHA-256', maskStr(ab2hex(sha256Hash), 12));
+
+                    // Step 3: Hashing SHA-3
+                    const sha3Hex = await step(() => hashSHA3(compressed));
+                    addOutput('encode-outputs', 'SHA-3', maskStr(sha3Hex, 12));
+
+                    // Step 4: Deriving keys PBKDF2
+                    const salt = crypto.getRandomValues(new Uint8Array(16));
+                    const keys = await step(async () => {
+                        const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                        const aesK = await crypto.subtle.deriveKey(
+                            { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+                            material,
+                            { name: 'AES-GCM', length: 256 },
+                            false, ['encrypt']
+                        );
+                        const hmacK = await crypto.subtle.deriveKey(
+                            { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+                            material,
+                            { name: 'HMAC', hash: 'SHA-256' },
+                            false, ['sign']
+                        );
+                        return { aesK, hmacK };
+                    });
+                    addOutput('encode-outputs', 'Salt (Generated)', ab2hex(salt));
+
+                    // Step 5: Encrypting AES-256-GCM
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const ciphertext = await step(() => crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keys.aesK, compressed));
+                    addOutput('encode-outputs', 'IV', ab2hex(iv));
+                    addOutput('encode-outputs', 'Ciphertext Size', fmtBytes(ciphertext.byteLength));
+
+                    // Step 6: Generating HMAC
+                    const hmac = await step(() => crypto.subtle.sign('HMAC', keys.hmacK, ciphertext));
+                    addOutput('encode-outputs', 'HMAC', maskStr(ab2hex(hmac), 12));
+
+                    // Step 7: Building payload
+                    const payloadBytes = await step(() => {
+                        const payloadObj = {
+                            version: 1, mode: 'password', ciphertext: arrayToBase64(ciphertext),
+                            iv: arrayToBase64(iv), salt: arrayToBase64(salt), hmac: arrayToBase64(hmac),
+                            sha256: arrayToBase64(sha256Hash), sha3: sha3Hex
+                        };
+                        return new TextEncoder().encode(JSON.stringify(payloadObj));
+                    });
+
+                    // Step 8: Embedding Adaptive LSB
+                    const embedResult = await step(async () => {
+                        const file = imageInput.files[0];
+                        const img = await createImageBitmap(file);
+                        const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const res = adaptiveLSBEmbed(imgData, canvas.width, canvas.height, bytesToBits(payloadBytes), password);
+                        ctx.putImageData(imgData, 0, 0);
+                        return { canvas, ...res, w: canvas.width, h: canvas.height };
+                    });
+
+                    // Step 9: Finalizing stego image
+                    await step(async () => {
+                        const blob = await new Promise(res => embedResult.canvas.toBlob(res, 'image/png'));
+                        downloadBlob(blob, `stego_${Date.now()}.png`);
+                        window.lastStegoBlob = blob;
+                        document.getElementById('encode-downloads-card').style.display = '';
+                        document.getElementById('encode-downloads').innerHTML = `<div class="download-item"><span>Stego Image (PNG)</span><button onclick="downloadBlob(window.lastStegoBlob, 'stego.png')">Download</button></div>`;
+                    });
+
+                } else {
+                    /* MODE 2: RSA KEY FILE (EXISTING) */
+                    const compressed = await step(() => compress(plaintext));
+                    const sha256Hash = await step(() => hashSHA256(compressed));
+                    const sha3Hex = await step(() => hashSHA3(compressed));
+                    const hmacKBytes = crypto.getRandomValues(new Uint8Array(32));
+                    const hmac = await step(() => generateHMAC(compressed, hmacKBytes));
+                    const salt = crypto.getRandomValues(new Uint8Array(16));
+                    const aesKey = await step(() => deriveAESKey(password, salt));
+                    const aesRes = await step(() => encryptAES(new Uint8Array([...compressed, ...hmacKBytes]), aesKey));
+                    const rsaPair = await step(() => generateRSAKeyPair(false));
+                    const spki = await crypto.subtle.exportKey('spki', rsaPair.publicKey);
+                    const rawAES = await crypto.subtle.exportKey('raw', aesKey);
+                    const rsaEncKey = await step(() => rsaEncrypt(rawAES, rsaPair.publicKey));
+                    const sig = await step(() => rsaPSSSign(aesRes.ciphertext, rsaPair.privateKey));
+                    const payloadBytes = await step(() => buildPayload([new Uint8Array(aesRes.ciphertext), new Uint8Array(rsaEncKey), new Uint8Array(hmac), new Uint8Array(sha256Hash), new TextEncoder().encode(sha3Hex), new Uint8Array(sig), new Uint8Array(spki), salt, aesRes.iv]));
+                    const embedResult = await step(async () => {
+                        const file = imageInput.files[0];
+                        const img = await createImageBitmap(file);
+                        const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const res = adaptiveLSBEmbed(imgData, canvas.width, canvas.height, bytesToBits(payloadBytes), password);
+                        ctx.putImageData(imgData, 0, 0);
+                        return { canvas, ...res, w: canvas.width, h: canvas.height };
+                    });
+                    await step(async () => {
+                        const blob = await new Promise(res => embedResult.canvas.toBlob(res, 'image/png'));
+                        downloadBlob(blob, `stego_${Date.now()}.png`);
+                        const jwk = await crypto.subtle.exportKey('jwk', rsaPair.privateKey);
+                        downloadBlob(new Blob([JSON.stringify(jwk)], { type: 'application/json' }), 'private_key.jwk');
+                        window.lastStegoBlob = blob; window.lastPrivKeyBlob = new Blob([JSON.stringify(jwk)], { type: 'application/json' });
+                        document.getElementById('encode-downloads-card').style.display = '';
+                        document.getElementById('encode-downloads').innerHTML = `<div class="download-item"><span>Stego Image</span><button onclick="downloadBlob(window.lastStegoBlob, 'stego_rsa.png')">Download</button></div><div class="download-item"><span>Private Key</span><button onclick="downloadBlob(window.lastPrivKeyBlob, 'key.jwk')">Download</button></div>`;
+                    });
+                }
+            } catch (e) {
+                showError('encode-error', e.message || 'Error occurred.');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        /* ============================================================
+           DECODE FLOW
+           ============================================================ */
+
+        async function startDecode() {
+            const imageInput = document.getElementById('decode-image');
+            const keyInput = document.getElementById('decode-privkey');
+            const passInput = document.getElementById('decode-password');
+            const keyMode = document.querySelector('input[name="decode-key-mode"]:checked').value;
+
+            if (!imageInput.files.length) return showError('decode-error', 'Please select a stego image.');
+            if (keyMode === 'keyfile' && !keyInput.files.length) return showError('decode-error', 'Please provide the RSA private key file.');
+            if (!passInput.value) return showError('decode-error', 'Please enter the password.');
+            hideError('decode-error');
+
+            const btn = document.getElementById('decode-btn');
+            btn.disabled = true;
+
+            const pipeCard = document.getElementById('decode-pipeline-card');
+            pipeCard.style.display = '';
+            const steps = keyMode === 'password' ? DECODE_STEPS_PW : DECODE_STEPS_RSA;
+            renderPipeline('decode-pipeline', steps);
+
+            document.getElementById('decode-outputs-card').style.display = '';
+            document.getElementById('decode-outputs').innerHTML = '';
+            document.getElementById('decode-result-card').style.display = 'none';
+            document.getElementById('decode-result').innerHTML = '';
+            document.getElementById('self-destruct-msg').style.display = 'none';
+
+            let stepIdx = 0;
+
+            async function step(fn) {
+                setStepState('decode-pipeline', stepIdx, 'running');
+                const t0 = performance.now();
+                try {
+                    const result = await fn();
+                    const elapsed = performance.now() - t0;
+                    setStepState('decode-pipeline', stepIdx, 'done', elapsed);
+                    stepIdx++;
+                    return result;
+                } catch (e) {
+                    setStepState('decode-pipeline', stepIdx, 'error', performance.now() - t0);
+                    throw e;
+                }
+            }
+
+            try {
+                const password = passInput.value;
+
+                // Step 0: Loading stego image
+                const imgData = await step(async () => {
+                    const file = imageInput.files[0];
+                    const img = await createImageBitmap(file);
+                    const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
+                    return { imageData: ctx.getImageData(0, 0, canvas.width, canvas.height), w: canvas.width, h: canvas.height, canvas };
+                });
+
+                // Step 1: Checking self-destruct flag
+                const preCheck = await step(() => {
+                    return adaptiveLSBExtract(imgData.imageData, imgData.w, imgData.h, password);
+                });
+
+                if (preCheck.selfDestructFlag === 0xFF) {
+                    document.getElementById('self-destruct-msg').style.display = '';
+                    throw new Error('MESSAGE ALREADY DECODED — Self-destruct was triggered on this image.');
+                }
+
+                if (keyMode === 'password') {
+                    /* MODE 1: PASSWORD ONLY (RSA-FREE) */
+
+                    // Step 2: Extracting payload
+                    const payloadBytes = await step(() => bitsToBytes(preCheck.payloadBits));
+
+                    // Step 3: Parsing payload (JSON)
+                    const payload = await step(() => {
+                        const str = new TextDecoder().decode(payloadBytes);
+                        const obj = JSON.parse(str);
+                        if (obj.mode !== 'password') throw new Error('Incorrect Mode. Image encoded with RSA key.');
+                        return {
+                            ciphertext: base64ToArray(obj.ciphertext),
+                            iv: base64ToArray(obj.iv),
+                            salt: base64ToArray(obj.salt),
+                            hmac: base64ToArray(obj.hmac),
+                            sha256: base64ToArray(obj.sha256),
+                            sha3: obj.sha3
+                        };
+                    });
+                    addOutput('decode-outputs', 'Salt (Extracted)', ab2hex(payload.salt));
+
+                    // Step 4: Deriving keys
+                    const keys = await step(async () => {
+                        const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                        const aesK = await crypto.subtle.deriveKey(
+                            { name: 'PBKDF2', salt: payload.salt, iterations: 100000, hash: 'SHA-256' },
+                            material,
+                            { name: 'AES-GCM', length: 256 },
+                            false, ['decrypt']
+                        );
+                        const hmacK = await crypto.subtle.deriveKey(
+                            { name: 'PBKDF2', salt: payload.salt, iterations: 100000, hash: 'SHA-256' },
+                            material,
+                            { name: 'HMAC', hash: 'SHA-256' },
+                            false, ['verify']
+                        );
+                        return { aesKey: aesK, hmacKey: hmacK };
+                    });
+
+                    // Step 5: Verifying HMAC
+                    const hv = await step(() => crypto.subtle.verify('HMAC', keys.hmacKey, payload.hmac, payload.ciphertext));
+                    if (!hv) throw new Error('HMAC verification FAILED. Data tampered.');
+                    addOutput('decode-outputs', 'HMAC Integrity', '✅ VALID');
+
+                    // Step 6: Decrypting AES
+                    const compressed = await step(() => crypto.subtle.decrypt({ name: 'AES-GCM', iv: payload.iv }, keys.aesKey, payload.ciphertext));
+
+                    // Step 7: Decompressing data
+                    const finalPlaintext = await step(() => decompress(new Uint8Array(compressed)));
+
+                    // Step 8: Recomputing & comparing hashes
+                    const hashMatch = await step(async () => {
+                        const sha256Re = await hashSHA256(new Uint8Array(compressed));
+                        const sha3Re = hashSHA3(new Uint8Array(compressed));
+                        const m1 = ab2hex(new Uint8Array(sha256Re)) === ab2hex(payload.sha256);
+                        const m2 = sha3Re === payload.sha3;
+                        if (!m1 || !m2) throw new Error('SHA hash mismatch.');
+                        return true;
+                    });
+                    addOutput('decode-outputs', 'Hashes', '✅ MATCH');
+
+                    // Step 9: Displaying result
+                    await step(() => {
+                        const resultCard = document.getElementById('decode-result-card');
+                        resultCard.style.display = '';
+                        document.getElementById('decode-result').innerHTML = `
+                            <div class="status-badge verified">✅ VERIFIED — SECURE PASSWORD MODE</div>
+                            <div class="output-box" style="margin-top:16px" id="decoded-msg-val">${finalPlaintext.replace(/</g, '&lt;')}</div>
+                        `;
+                    });
+
+                } else {
+                    /* MODE 2: RSA KEY FILE */
+                    let rsaPrivateKey;
+                    const privKeyText = await keyInput.files[0].text();
+                    const privJWK = JSON.parse(privKeyText);
+                    const jwkForDecrypt = { ...privJWK, key_ops: ['decrypt'] };
+                    delete jwkForDecrypt.alg;
+                    rsaPrivateKey = await crypto.subtle.importKey('jwk', jwkForDecrypt, { name: 'RSA-OAEP', hash: 'SHA-256' }, true, ['decrypt']);
+
+                    const extractedBytes = await step(() => bitsToBytes(preCheck.payloadBits));
+                    const partsArr = await step(() => parsePayload(extractedBytes));
+                    const [ciphertext, rsaEncKey, hmac, sha256Hash, sha3Bytes, signature, publicKey, salt, iv] = partsArr;
+                    const parts = { encData: ciphertext, rsaEncKey, hmac, sha256: sha256Hash, sha3Hex: new TextDecoder().decode(sha3Bytes), signature, publicKey, salt, iv };
+
+                    const rsaPubKeyPSS = await step(() => crypto.subtle.importKey('spki', parts.publicKey, { name: 'RSA-PSS', hash: 'SHA-256' }, true, ['verify']));
+                    const sigValid = await step(() => rsaPSSVerify(parts.encData, parts.signature, rsaPubKeyPSS));
+                    if (!sigValid) throw new Error('Signature mismatch.');
+
+                    const hmacStepIdx = stepIdx++;
+                    const rawAESKey = await step(() => rsaDecrypt(parts.rsaEncKey, rsaPrivateKey));
+                    const aesKey = await crypto.subtle.importKey('raw', rawAESKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+                    const decryptedCombined = await step(() => decryptAES(parts.encData, aesKey, parts.iv));
+                    const decryptedArr = new Uint8Array(decryptedCombined);
+                    const hmacK = decryptedArr.slice(decryptedArr.length - 32);
+                    const comp = decryptedArr.slice(0, decryptedArr.length - 32);
+
+                    const hv = await verifyHMAC(comp, hmac, hmacK);
+                    if (!hv) throw new Error('HMAC mismatch.');
+                    setStepState('decode-pipeline', hmacStepIdx, 'done');
+
+                    const ptext = await step(() => decompress(comp));
+                    const resultCard = document.getElementById('decode-result-card');
+                    resultCard.style.display = '';
+                    document.getElementById('decode-result').innerHTML = `
+                        <div class="status-badge verified">✅ VERIFIED — RSA KEY FILE MODE</div>
+                        <div class="output-box" style="margin-top:16px">${ptext.replace(/</g, '&lt;')}</div>
+                    `;
+                }
+
+                // Mark self-destruct
+                markSelfDestruct(imgData.imageData, imgData.w, imgData.h, password, preCheck.payloadBits.length);
+            } catch (e) {
+                showError('decode-error', e.message || 'Decoding failed.');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>
