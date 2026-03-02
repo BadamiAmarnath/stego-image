@@ -18,7 +18,17 @@ https://badamiamarnath.github.io/stego-image/
 - JavaScript
 
 ## 📷 Screenshots
-(Add screenshots below)
+### 🔐 Encode – Normal
+![Encode Normal](encode-normal.png)
+
+### 🔐 Encode – After Running
+![Encode Result](encode-result.png)
+
+### 🔓 Decode – Normal
+![Decode Normal](decode-normal.png)
+
+### 🔓 Decode – After Running
+![Decode Result](decode-result.png)
 
 ---
 
