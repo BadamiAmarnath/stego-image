@@ -38,3 +38,10 @@ https://badamiamarnath.github.io/stego-image/
 This project demonstrates the concept of image steganography where confidential text is hidden inside digital images without visibly altering them.
 
 It is developed as a mini project to understand data security and information hiding techniques.
+
+---
+
+👨‍💻 Author  
+Badami Amarnath  
+
+🔗 GitHub: https://github.com/BadamiAmarnath
