@@ -1,4 +1,6 @@
-
+![HTML](https://img.shields.io/badge/HTML-100%25-orange)
+![Status](https://img.shields.io/badge/Status-Live-success)
+![License](https://img.shields.io/badge/License-MIT-blue)
 # 🔐 Secure Steganography Web App
 
 A web-based application that hides secret messages inside images using steganography techniques.
